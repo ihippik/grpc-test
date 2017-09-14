@@ -14,9 +14,8 @@ func main() {
 
 func handler(res http.ResponseWriter, req *http.Request){
 	u:= &pb.User{
-		Id: proto.Int32(1234),
-		Name: proto.String("Константин"),
-		Email: proto.String("hippik80@gmail.com"),
+		Name: "Константин",
+		Email: "hippik80@gmail.com",
 	}
 
 	body, err :=proto.Marshal(u)

@@ -1,7 +1,8 @@
+syntax = "proto3";
 package user;
 
 message User {
-    required int32 id = 1;
-    required string name = 2;
-    optional string email = 3;
+    string name = 1;
+    string email = 2;
+    int64 id = 3;
 }

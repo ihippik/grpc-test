@@ -1,25 +1,55 @@
 package main
 
 import (
-	pb "github.com/ihippik/grpc-test/protocol"
-	"golang.org/x/net/context"
+	"log"
 	"net"
-	"fmt"
+	"strings"
+
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+
+	pb "github.com/ihippik/grpc-test/protocol"
 )
-type server struct{}
 
-func (s *server) Get(ctx context.Context, in *pb.GetUserRequest)(*pb.User, error){
+//go:generate protoc -I ../protocol --go_out=plugins=grpc:../protocol ../protocol/customer.proto
 
-	return &pb.User{Name:"Вася", Email:"loop@lop.lp"}, nil
+const (
+	port = ":50051"
+)
+
+// server is used to implement customer.CustomerServer.
+type server struct {
+	savedCustomers []*pb.CustomerRequest
+}
+
+// CreateCustomer creates a new Customer
+func (s *server) CreateCustomer(ctx context.Context, in *pb.CustomerRequest) (*pb.CustomerResponse, error) {
+	s.savedCustomers = append(s.savedCustomers, in)
+	return &pb.CustomerResponse{Id: in.Id, Success: true}, nil
+}
+
+// GetCustomers returns all customers by given filter
+func (s *server) GetCustomers(filter *pb.CustomerFilter, stream pb.Customer_GetCustomersServer) error {
+	for _, customer := range s.savedCustomers {
+		if filter.Keyword != "" {
+			if !strings.Contains(customer.Name, filter.Keyword) {
+				continue
+			}
+		}
+		if err := stream.Send(customer); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func main() {
-	l, err:= net.Listen("tcp", ":55555")
-	if err !=nil{
-		fmt.Println(err.Error())
+	lis, err := net.Listen("tcp", port)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
-	s:= grpc.NewServer()
-	pb.RegisterGetUserServer(s,&server{})
-	s.Serve(l)
+	// Creates a new gRPC server
+	s := grpc.NewServer()
+	pb.RegisterCustomerServer(s, &server{})
+	s.Serve(lis)
 }

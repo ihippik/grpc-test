@@ -1,27 +1,103 @@
 package main
 
 import (
-	"fmt"
-	pb "github.com/ihippik/grpc-test/protocol"
-	"google.golang.org/grpc"
+	"io"
+	"log"
+
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+
+	pb "github.com/ihippik/grpc-test/protocol"
 )
 
+const (
+	address = "localhost:50051"
+)
 
-//go:generate protoc -I ../protocol --go_out=plugins=grpc:../protocol ../protocol/user.proto
-func main(){
-	address := "localhost:55555"
-	conn, err :=grpc.Dial(address, grpc.WithInsecure())
-	if err != nil{
-		fmt.Println(err.Error())
+// createCustomer calls the RPC method CreateCustomer of CustomerServer
+func createCustomer(client pb.CustomerClient, customer *pb.CustomerRequest) {
+	resp, err := client.CreateCustomer(context.Background(), customer)
+	if err != nil {
+		log.Fatalf("Could not create Customer: %v", err)
+	}
+	if resp.Success {
+		log.Printf("A new Customer has been added with id: %d", resp.Id)
+	}
+}
+
+// getCustomers calls the RPC method GetCustomers of CustomerServer
+func getCustomers(client pb.CustomerClient, filter *pb.CustomerFilter) {
+	// calling the streaming API
+	stream, err := client.GetCustomers(context.Background(), filter)
+	if err != nil {
+		log.Fatalf("Error on get customers: %v", err)
+	}
+	for {
+		customer, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatalf("%v.GetCustomers(_) = _, %v", client, err)
+		}
+		log.Printf("%d",customer.Id)
+	}
+}
+func main() {
+	// Set up a connection to the gRPC server.
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c:= pb.NewGetUserClient(conn)
-	id:=int64(1)
-	hr:=&pb.GetUserRequest{Id:id}
-	r, err := c.Get(context.Background(), hr)
-	if err!=nil{
-		fmt.Println(err.Error())
+	// Creates a new CustomerClient
+	client := pb.NewCustomerClient(conn)
+
+	customer := &pb.CustomerRequest{
+		Id:    101,
+		Name:  "Иванов Сергей",
+		Email: "ivanov@xyz.com",
+		Phone: "732-757-2923",
+		Addresses: []*pb.CustomerRequest_Address{
+			&pb.CustomerRequest_Address{
+				Street:            "Брежнева",
+				City:              "Смоленск",
+				State:             "CA",
+				Zip:               "94105",
+				IsShippingAddress: false,
+			},
+			&pb.CustomerRequest_Address{
+				Street:            "Ленина",
+				City:              "Калуга",
+				State:             "KL",
+				Zip:               "68356",
+				IsShippingAddress: true,
+			},
+		},
 	}
-	fmt.Println(r.Name)
+
+	// Create a new customer
+	createCustomer(client, customer)
+
+	customer = &pb.CustomerRequest{
+		Id:    102,
+		Name:  "Мазулин Виктор",
+		Email: "mazulin@xyz.com",
+		Phone: "732-757-2924",
+		Addresses: []*pb.CustomerRequest_Address{
+			&pb.CustomerRequest_Address{
+				Street:            "Юных ленинцев",
+				City:              "Ульяновск",
+				State:             "CA",
+				Zip:               "94105",
+				IsShippingAddress: true,
+			},
+		},
+	}
+
+	// Create a new customer
+	createCustomer(client, customer)
+	// Filter with an empty Keyword
+	filter := &pb.CustomerFilter{Keyword: "Виктор"}
+	getCustomers(client, filter)
 }

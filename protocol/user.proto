@@ -1,8 +1,16 @@
 syntax = "proto3";
 package user;
 
+service GetUser{
+    rpc Get (GetUserRequest) returns (User) {}
+}
+
 message User {
     string name = 1;
     string email = 2;
     int64 id = 3;
+}
+
+message GetUserRequest{
+    int64 id = 1;
 }

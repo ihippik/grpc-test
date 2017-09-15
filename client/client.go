@@ -1,28 +1,25 @@
 package main
 
 import (
-	"net/http"
 	"fmt"
-	"io/ioutil"
 	pb "github.com/ihippik/grpc-test/protocol"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc"
+	"golang.org/x/net/context"
 )
 
 func main(){
-	res, err :=http.Get("http://localhost:1323")
+	address := "localhost:55555"
+	conn, err :=grpc.Dial(address, grpc.WithInsecure())
 	if err != nil{
 		fmt.Println(err.Error())
 	}
-	defer res.Body.Close()
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil{
+	defer conn.Close()
+	c:= pb.NewGetUserClient(conn)
+	id:=int64(1)
+	hr:=&pb.GetUserRequest{Id:id}
+	r, err := c.Get(context.Background(), hr)
+	if err!=nil{
 		fmt.Println(err.Error())
 	}
-
-	var u pb.User
-	err = proto.Unmarshal(b, &u)
-	if err != nil{
-		fmt.Println(err.Error())
-	}
-	fmt.Println(u)
+	fmt.Println(r)
 }

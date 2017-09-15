@@ -15,7 +15,7 @@ func (s *server) Get(ctx context.Context, in *pb.GetUserRequest)(*pb.User, error
 }
 
 func main() {
-	l, err:= net.Listen("tsp", ":55555")
+	l, err:= net.Listen("tcp", ":55555")
 	if err !=nil{
 		fmt.Println(err.Error())
 	}
